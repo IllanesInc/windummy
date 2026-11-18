@@ -40,7 +40,11 @@ struct ClipboardView: View {
                 ScrollView {
                     LazyVStack(spacing: 2) {
                         ForEach(Array(filteredItems.enumerated()), id: \.element.id) { index, item in
-                            ClipRow(item: item, index: index) {
+                            ClipRow(item: item, index: index, onDelete: {
+                                withAnimation(.easeOut(duration: 0.15)) {
+                                    clipboard.remove(item)
+                                }
+                            }) {
                                 model.onPick(item)
                             }
                         }
@@ -62,6 +66,7 @@ struct ClipboardView: View {
 private struct ClipRow: View {
     let item: ClipItem
     let index: Int
+    let onDelete: () -> Void
     let action: () -> Void
 
     @EnvironmentObject private var hover: HoverTracker
@@ -92,10 +97,26 @@ private struct ClipRow: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .modifier(QuickPickShortcut(index: index))
+        // The delete button sits on top of the row, just left of the ⌘-number,
+        // and only while the pointer is over the row.
+        .overlay(alignment: .trailing) {
+            if isHovered {
+                Button(action: onDelete) {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.system(size: 14))
+                        .foregroundStyle(.secondary)
+                        .padding(4)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .help("Remove from history")
+                .padding(.trailing, 50)
+            }
+        }
         .onHover { isHovering in
             hover.update(hoverID, isHovering: isHovering)
         }
-        .modifier(QuickPickShortcut(index: index))
     }
 
     @ViewBuilder

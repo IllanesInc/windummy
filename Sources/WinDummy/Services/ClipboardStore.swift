@@ -34,6 +34,8 @@ final class ClipboardStore: ObservableObject {
     private let pasteboard = NSPasteboard.general
     private var lastChangeCount = 0
     private var timer: Timer?
+    /// The history entry the clipboard currently holds, if any.
+    private var currentItemID: UUID?
 
     /// Markers that password managers and similar apps put on the pasteboard
     /// to say "do not record this". See nspasteboard.org.
@@ -65,10 +67,25 @@ final class ClipboardStore: ObservableObject {
         }
         // This change is our own; do not record it as a new entry.
         lastChangeCount = pasteboard.changeCount
+        currentItemID = item.id
 
         if let index = items.firstIndex(where: { $0.id == item.id }), index != 0 {
             let moved = items.remove(at: index)
             items.insert(moved, at: 0)
+        }
+    }
+
+    /// Removes one entry from the history. If the clipboard still holds that
+    /// entry, the clipboard is emptied too, so a deleted code or password
+    /// cannot be pasted by accident afterwards.
+    func remove(_ item: ClipItem) {
+        items.removeAll { $0.id == item.id }
+
+        // An unchanged counter means nothing has been copied since we last looked.
+        if currentItemID == item.id, pasteboard.changeCount == lastChangeCount {
+            pasteboard.clearContents()
+            lastChangeCount = pasteboard.changeCount
+            currentItemID = nil
         }
     }
 
@@ -81,6 +98,8 @@ final class ClipboardStore: ObservableObject {
     private func poll() {
         guard pasteboard.changeCount != lastChangeCount else { return }
         lastChangeCount = pasteboard.changeCount
+        // Until proven otherwise, the clipboard holds something we do not record.
+        currentItemID = nil
 
         let types = pasteboard.types ?? []
         if types.contains(where: { ignoredTypes.contains($0.rawValue) }) {
@@ -108,7 +127,9 @@ final class ClipboardStore: ObservableObject {
             }
         }
 
-        items.insert(ClipItem(content: content, date: Date(), appName: appName), at: 0)
+        let item = ClipItem(content: content, date: Date(), appName: appName)
+        items.insert(item, at: 0)
+        currentItemID = item.id
 
         if items.count > maxItems {
             items.removeLast(items.count - maxItems)
