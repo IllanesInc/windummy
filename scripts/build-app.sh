@@ -14,6 +14,8 @@
 #   1. $CODESIGN_IDENTITY, if set
 #   2. a certificate named "WinDummy Dev" in your keychain (see the README)
 #   3. ad hoc signing
+#
+# APP_VERSION=1.2.0 sets the version shown in Finder's Get Info.
 
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -44,6 +46,10 @@ cp "${BIN_DIR}/${EXECUTABLE}" "${APP_DIR}/Contents/MacOS/${EXECUTABLE}"
 cp "Support/Info.plist" "${APP_DIR}/Contents/Info.plist"
 if [ -f "Support/AppIcon.icns" ]; then
     cp "Support/AppIcon.icns" "${APP_DIR}/Contents/Resources/AppIcon.icns"
+fi
+# The release workflow passes the version from the git tag (v1.2.0 -> 1.2.0).
+if [ -n "${APP_VERSION:-}" ]; then
+    /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString ${APP_VERSION}" "${APP_DIR}/Contents/Info.plist"
 fi
 
 if [ "${IDENTITY}" = "-" ]; then

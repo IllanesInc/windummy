@@ -35,6 +35,12 @@ Everything lives in one floating panel. Click the ⌘ icon in the menu bar, or p
 
 Clipboard history is kept in memory only and is gone when you quit; from the ⋯ menu you can also have clips forgotten after 15 minutes, an hour or 8 hours. The one exception is clips you pin: those are saved to `~/Library/Application Support/WinDummy/Pinned.plist` so they survive a restart. Entries that password managers mark as secret are never recorded.
 
+## Download
+
+Grab `WinDummy.zip` from the [latest release](../../releases/latest), unzip it and move `WinDummy.app` to `/Applications`.
+
+The app is not notarized by Apple, so the first time macOS says it cannot check it for malicious software. Right-click the app, choose **Open**, then **Open** again. On newer macOS versions you may instead have to go to **System Settings → Privacy & Security** and click **Open Anyway**. After that it opens normally.
+
 ## Build and run
 
 You need macOS 14 or later and the Xcode Command Line Tools. Full Xcode is not required.
@@ -52,6 +58,17 @@ The app bundle ends up in `build/WinDummy.app`. Drag it to `/Applications` if yo
 While developing you can also open `Package.swift` in Xcode, or run `swift run` from the terminal.
 
 Run the tests with `swift test`. They use a private pasteboard, so they never touch your clipboard.
+
+### Releases
+
+Every push to `main` runs the tests and builds the app on GitHub (`.github/workflows/ci.yml`). To publish a release, push a version tag:
+
+```sh
+git tag v0.2.0
+git push origin v0.2.0
+```
+
+`.github/workflows/release.yml` then builds the app with that version number and attaches `WinDummy.zip` to a new GitHub release.
 
 ## Permissions
 
