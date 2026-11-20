@@ -17,11 +17,24 @@ struct CheatSheetView: View {
         }
     }
 
+    /// Searching for "@" or "pipe" here should not end in "No matches":
+    /// those answers live in the Characters tab, so show them right here.
+    private var matchingCharacters: [SpecialCharacter] {
+        let trimmed = model.cheatSheetQuery.trimmingCharacters(in: .whitespaces)
+        guard !trimmed.isEmpty else { return [] }
+        return Array(Characters.all.filter { $0.matches(trimmed) }.prefix(3))
+    }
+
     var body: some View {
         VStack(spacing: 8) {
             SearchField(text: $model.cheatSheetQuery, prompt: "Search, for example “rename” or “Alt+Tab”", focused: $searchFocused)
 
-            if filteredGroups.isEmpty {
+            if filteredGroups.isEmpty, !matchingCharacters.isEmpty {
+                ScrollView {
+                    CharacterHints(characters: matchingCharacters)
+                        .padding(.horizontal, Theme.sidePadding)
+                }
+            } else if filteredGroups.isEmpty {
                 EmptyState(
                     symbol: "keyboard",
                     title: "No matches",
@@ -32,6 +45,9 @@ struct CheatSheetView: View {
                     LazyVStack(alignment: .leading, spacing: 16) {
                         if model.cheatSheetQuery.isEmpty {
                             KeyLegend()
+                        }
+                        if !matchingCharacters.isEmpty {
+                            CharacterHints(characters: matchingCharacters)
                         }
                         ForEach(filteredGroups) { group in
                             GroupSection(group: group)
@@ -47,6 +63,66 @@ struct CheatSheetView: View {
         }
         .onChange(of: model.openCount) { _, _ in
             searchFocused = true
+        }
+    }
+}
+
+private struct CharacterHints: View {
+    let characters: [SpecialCharacter]
+
+    @EnvironmentObject private var model: PanelModel
+    @EnvironmentObject private var keyboard: KeyboardCharacters
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Label("On your keyboard", systemImage: "keyboard")
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(.secondary)
+                .padding(.leading, 4)
+
+            VStack(spacing: 0) {
+                ForEach(Array(characters.enumerated()), id: \.element.id) { index, character in
+                    if index > 0 {
+                        Divider()
+                            .padding(.leading, 12)
+                    }
+                    HStack(spacing: 10) {
+                        Text(verbatim: character.character)
+                            .font(.system(size: 18, weight: .medium))
+                            .frame(width: 26)
+                        Text(character.name)
+                            .font(.system(size: 12.5, weight: .medium))
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                        if let recipe = keyboard.recipes[character.character] {
+                            HStack(spacing: 4) {
+                                ForEach(Array(recipe.steps.enumerated()), id: \.offset) { index, step in
+                                    if index > 0 {
+                                        Text("then")
+                                            .font(.system(size: 10.5))
+                                            .foregroundStyle(.tertiary)
+                                    }
+                                    KeyCap(step)
+                                }
+                            }
+                        } else {
+                            Text("Not on this keyboard")
+                                .font(.system(size: 11))
+                                .foregroundStyle(.tertiary)
+                        }
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 9)
+                }
+            }
+            .card()
+
+            Button("All characters, and click to type them →") {
+                model.charactersQuery = model.cheatSheetQuery
+                model.tab = .characters
+            }
+            .buttonStyle(.link)
+            .font(.system(size: 11))
+            .padding(.leading, 4)
         }
     }
 }
