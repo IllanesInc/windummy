@@ -29,7 +29,7 @@ The hotkeys use the same letters as on Windows, combined with `⌃⌥⌘`: the t
 Everything lives in one floating panel. Click the ⌘ icon in the menu bar, or press `⌃⌥⌘V` anywhere:
 
 - **Quick actions** for snipping an area, copying a window, and opening the macOS screenshot and recording toolbar.
-- **Clipboard** tab: the last 40 things you copied, text and images. Type to filter, press Return to paste the top hit, or press `⌘1` to `⌘9`.
+- **Clipboard** tab: the last 40 things you copied: text with its formatting, files from Finder, and the 5 latest images. Type to filter, press Return to paste the top hit, or press `⌘1` to `⌘9`. Hold `⌥` to paste as plain text; for files that pastes their paths.
 - **Characters** tab: where `@`, `|`, `\`, `{ }`, `[ ]`, `~` and about 30 other hard-to-find characters are on *your* keyboard layout, worked out from the layout itself, so it is right for Swedish, German, French and the rest. Click a character to type it, star the ones you use to keep them at the top.
 - **Cheat sheet** tab: about 60 Windows shortcuts translated to their Mac equivalents. Search by the Windows keys (`Alt+Tab`) or by what you want to do (`rename`).
 
@@ -50,6 +50,8 @@ cd windummy
 The app bundle ends up in `build/WinDummy.app`. Drag it to `/Applications` if you want to keep it, and turn on **Launch at login** from the ⋯ menu in the panel.
 
 While developing you can also open `Package.swift` in Xcode, or run `swift run` from the terminal.
+
+Run the tests with `swift test`. They use a private pasteboard, so they never touch your clipboard.
 
 ## Permissions
 

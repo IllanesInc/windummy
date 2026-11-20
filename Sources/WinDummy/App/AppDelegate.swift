@@ -59,8 +59,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         model.onOpenScreenshotToolbar = { [weak self] in
             self?.closeThen { ScreenCapture.openScreenshotToolbar() }
         }
-        model.onPick = { [weak self] item in
-            self?.pick(item)
+        model.onPick = { [weak self] item, plainText in
+            self?.pick(item, plainText: plainText)
         }
         model.onTypeCharacter = { [weak self] character in
             self?.type(character)
@@ -163,8 +163,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    private func pick(_ item: ClipItem) {
-        clipboard.copyToClipboard(item)
+    private func pick(_ item: ClipItem, plainText: Bool) {
+        clipboard.copyToClipboard(item, plainText: plainText)
         hidePanel()
         // With Accessibility permission we can press ⌘V for the user, like Win+V does.
         // Without it the item is simply on the clipboard, ready for a manual ⌘V.
@@ -200,14 +200,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func setUpHotKeys() {
         let center = HotKeyCenter.shared
-        center.register(.v) { [weak self] in
-            self?.togglePanel(fromStatusItem: false)
-        }
-        center.register(.s) { [weak self] in
-            self?.closeThen { ScreenCapture.snipAreaToClipboard() }
-        }
-        center.register(.w) { [weak self] in
-            self?.closeThen { ScreenCapture.snipWindowToClipboard() }
-        }
+        let bindings: [(key: HotKeyCenter.Key, action: () -> Void)] = [
+            (.v, { [weak self] in self?.togglePanel(fromStatusItem: false) }),
+            (.s, { [weak self] in self?.closeThen { ScreenCapture.snipAreaToClipboard() } }),
+            (.w, { [weak self] in self?.closeThen { ScreenCapture.snipWindowToClipboard() } }),
+        ]
+        // A combination another app already uses cannot be registered.
+        // Tell the user instead of leaving the key silently dead.
+        model.unavailableHotKeys = bindings
+            .filter { !center.register($0.key, handler: $0.action) }
+            .map { "⌃⌥⌘" + $0.key.letter }
     }
 }

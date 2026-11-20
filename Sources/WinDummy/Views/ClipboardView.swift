@@ -20,9 +20,17 @@ struct ClipboardView: View {
             SearchField(text: $model.query, prompt: "Search clipboard history", focused: $searchFocused)
                 .onSubmit {
                     if let first = filteredItems.first {
-                        model.onPick(first)
+                        model.onPick(first, NSEvent.modifierFlags.contains(.option))
                     }
                 }
+
+            if !clipboard.items.isEmpty {
+                Text("Return pastes the top one. Hold ⌥ to paste as plain text.")
+                    .font(.system(size: 10.5))
+                    .foregroundStyle(.tertiary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, Theme.sidePadding + 4)
+            }
 
             if clipboard.items.isEmpty {
                 EmptyState(
@@ -45,7 +53,7 @@ struct ClipboardView: View {
                                     clipboard.remove(item)
                                 }
                             }) {
-                                model.onPick(item)
+                                model.onPick(item, NSEvent.modifierFlags.contains(.option))
                             }
                         }
                     }
@@ -135,7 +143,25 @@ private struct ClipRow: View {
                         .foregroundStyle(.tertiary)
                 }
             }
-        case .image(let image):
+        case .files(let urls, let icon):
+            HStack(spacing: 10) {
+                Image(nsImage: icon)
+                    .resizable()
+                    .frame(width: 32, height: 32)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(urls.count == 1 ? urls[0].lastPathComponent : "\(urls.count) files")
+                        .font(.system(size: 12.5))
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                    Text(urls.count == 1 ? urls[0].deletingLastPathComponent().path : urls.map(\.lastPathComponent).joined(separator: ", "))
+                        .font(.system(size: 10))
+                        .foregroundStyle(.tertiary)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                }
+                Spacer(minLength: 0)
+            }
+        case .image(let image, let pixelSize):
             HStack(spacing: 10) {
                 Image(nsImage: image)
                     .resizable()
@@ -149,7 +175,7 @@ private struct ClipRow: View {
                 VStack(alignment: .leading, spacing: 3) {
                     Text("Image")
                         .font(.system(size: 12.5))
-                    Text(verbatim: "\(Int(image.size.width)) × \(Int(image.size.height))")
+                    Text(verbatim: "\(Int(pixelSize.width)) × \(Int(pixelSize.height))")
                         .font(.system(size: 10))
                         .foregroundStyle(.tertiary)
                 }

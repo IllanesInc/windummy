@@ -32,6 +32,9 @@ struct PanelView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
 
+            if !model.unavailableHotKeys.isEmpty {
+                HotKeyWarning(keys: model.unavailableHotKeys)
+            }
             FooterView()
         }
         .frame(width: Theme.panelSize.width, height: Theme.panelSize.height)
@@ -191,6 +194,31 @@ private struct ActionTile: View {
         }
         .animation(.easeOut(duration: 0.12), value: isHovered)
         .help("On Windows: \(windowsKeys)")
+    }
+}
+
+// MARK: - Hotkey warning
+
+private struct HotKeyWarning: View {
+    let keys: [String]
+
+    var body: some View {
+        Label {
+            Text("\(keys.joined(separator: ", ")) \(keys.count == 1 ? "is" : "are") already used by another app, so \(keys.count == 1 ? "it does" : "they do") nothing here. The buttons above still work.")
+                .fixedSize(horizontal: false, vertical: true)
+        } icon: {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .foregroundStyle(.orange)
+        }
+        .font(.system(size: 11))
+        .foregroundStyle(.secondary)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, Theme.sidePadding)
+        .padding(.vertical, 8)
+        .background(Color.orange.opacity(0.08))
+        .overlay(alignment: .top) {
+            Divider()
+        }
     }
 }
 

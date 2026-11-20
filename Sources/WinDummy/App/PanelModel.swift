@@ -33,11 +33,14 @@ final class PanelModel: ObservableObject {
     /// Goes up by one every time the panel opens. Views watch it to refocus the search field.
     @Published var openCount = 0
     @Published var launchAtLogin = false
+    /// Our hotkeys that another app had already taken, for example "⌃⌥⌘S".
+    @Published var unavailableHotKeys: [String] = []
 
     var onSnipArea: () -> Void = {}
     var onSnipWindow: () -> Void = {}
     var onOpenScreenshotToolbar: () -> Void = {}
-    var onPick: (ClipItem) -> Void = { _ in }
+    /// Pastes a history entry. The flag asks for plain text (⌥ held).
+    var onPick: (ClipItem, _ plainText: Bool) -> Void = { _, _ in }
     /// Puts a character into the app the user was working in.
     var onTypeCharacter: (String) -> Void = { _ in }
     var onCopyCharacter: (String) -> Void = { _ in }

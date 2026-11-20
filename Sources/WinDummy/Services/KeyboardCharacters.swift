@@ -63,18 +63,21 @@ final class KeyboardCharacters: ObservableObject {
         if let pointer = TISGetInputSourceProperty(source, kTISPropertyLocalizedName) {
             layoutName = Unmanaged<CFString>.fromOpaque(pointer).takeUnretainedValue() as String
         }
+        recipes = Self.recipes(for: source)
+    }
 
+    /// Where each character in `Characters.all` sits on the given layout.
+    static func recipes(for source: TISInputSource) -> [String: KeyRecipe] {
         guard let pointer = TISGetInputSourceProperty(source, kTISPropertyUnicodeKeyLayoutData) else {
-            recipes = [:]
-            return
+            return [:]
         }
         let data = Unmanaged<CFData>.fromOpaque(pointer).takeUnretainedValue() as Data
         let wanted = Set(Characters.all.map(\.character))
 
-        recipes = data.withUnsafeBytes { raw -> [String: KeyRecipe] in
+        return data.withUnsafeBytes { raw -> [String: KeyRecipe] in
             guard let base = raw.baseAddress else { return [:] }
             let layout = base.assumingMemoryBound(to: UCKeyboardLayout.self)
-            return Self.findRecipes(for: wanted, in: layout)
+            return findRecipes(for: wanted, in: layout)
         }
     }
 

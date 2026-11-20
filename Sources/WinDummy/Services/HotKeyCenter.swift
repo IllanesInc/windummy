@@ -17,6 +17,14 @@ final class HotKeyCenter {
         case v
         case w
 
+        var letter: String {
+            switch self {
+            case .s: return "S"
+            case .v: return "V"
+            case .w: return "W"
+            }
+        }
+
         var keyCode: Int {
             switch self {
             case .s: return kVK_ANSI_S
