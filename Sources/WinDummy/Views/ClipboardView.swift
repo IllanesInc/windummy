@@ -1,65 +1,76 @@
 import AppKit
 import SwiftUI
 
-/// Clipboard history: type to filter, click or press Return to paste.
+/// Clipboard history: type to filter, ↑↓ to choose, Return or a click to paste.
 struct ClipboardView: View {
     @EnvironmentObject private var model: PanelModel
     @EnvironmentObject private var clipboard: ClipboardStore
     @FocusState private var searchFocused: Bool
 
-    private var filteredItems: [ClipItem] {
-        let query = model.query.trimmingCharacters(in: .whitespaces)
-        guard !query.isEmpty else { return clipboard.items }
-        return clipboard.items.filter { item in
-            item.searchableText.localizedCaseInsensitiveContains(query)
-        }
+    private var query: String {
+        model.query.trimmingCharacters(in: .whitespaces)
+    }
+
+    private func filter(_ items: [ClipItem]) -> [ClipItem] {
+        guard !query.isEmpty else { return items }
+        return items.filter { $0.searchableText.localizedCaseInsensitiveContains(query) }
+    }
+
+    private var filteredPinned: [ClipItem] { filter(clipboard.pinned) }
+    private var filteredHistory: [ClipItem] { filter(clipboard.items) }
+    /// Everything shown, top to bottom. Indexes into this drive ⌘1–⌘9 and the selection.
+    private var shown: [ClipItem] { filteredPinned + filteredHistory }
+
+    private var isEmpty: Bool {
+        clipboard.items.isEmpty && clipboard.pinned.isEmpty
+    }
+
+    private var optionHeld: Bool {
+        NSEvent.modifierFlags.contains(.option)
     }
 
     var body: some View {
         VStack(spacing: 8) {
             SearchField(text: $model.query, prompt: "Search clipboard history", focused: $searchFocused)
                 .onSubmit {
-                    if let first = filteredItems.first {
-                        model.onPick(first, NSEvent.modifierFlags.contains(.option))
+                    let shown = shown
+                    if shown.indices.contains(model.selectedIndex) {
+                        model.onPick(shown[model.selectedIndex], optionHeld)
+                    } else if let first = shown.first {
+                        model.onPick(first, optionHeld)
                     }
                 }
+                .onKeyPress(.downArrow) {
+                    model.selectedIndex = min(model.selectedIndex + 1, max(shown.count - 1, 0))
+                    return .handled
+                }
+                .onKeyPress(.upArrow) {
+                    model.selectedIndex = max(model.selectedIndex - 1, 0)
+                    return .handled
+                }
 
-            if !clipboard.items.isEmpty {
-                Text("Return pastes the top one. Hold ⌥ to paste as plain text.")
+            if !isEmpty {
+                Text("↑↓ to choose, Return to paste. Hold ⌥ to paste as plain text.")
                     .font(.system(size: 10.5))
                     .foregroundStyle(.tertiary)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.horizontal, Theme.sidePadding + 4)
             }
 
-            if clipboard.items.isEmpty {
+            if isEmpty {
                 EmptyState(
                     symbol: "doc.on.clipboard",
                     title: "Nothing copied yet",
                     message: "Copy something with ⌘C and it shows up here.\nHistory stays in memory and is gone when you quit."
                 )
-            } else if filteredItems.isEmpty {
+            } else if shown.isEmpty {
                 EmptyState(
                     symbol: "magnifyingglass",
                     title: "No matches",
                     message: "Nothing in the history contains that text."
                 )
             } else {
-                ScrollView {
-                    LazyVStack(spacing: 2) {
-                        ForEach(Array(filteredItems.enumerated()), id: \.element.id) { index, item in
-                            ClipRow(item: item, index: index, onDelete: {
-                                withAnimation(.easeOut(duration: 0.15)) {
-                                    clipboard.remove(item)
-                                }
-                            }) {
-                                model.onPick(item, NSEvent.modifierFlags.contains(.option))
-                            }
-                        }
-                    }
-                    .padding(.horizontal, 10)
-                    .padding(.bottom, 8)
-                }
+                list
             }
         }
         .onAppear {
@@ -68,12 +79,77 @@ struct ClipboardView: View {
         .onChange(of: model.openCount) { _, _ in
             searchFocused = true
         }
+        .onChange(of: model.query) { _, _ in
+            model.selectedIndex = 0
+        }
+    }
+
+    private var list: some View {
+        let pinnedCount = filteredPinned.count
+        return ScrollViewReader { proxy in
+            ScrollView {
+                LazyVStack(alignment: .leading, spacing: 2) {
+                    if pinnedCount > 0 {
+                        SectionTitle(title: "Pinned", symbol: "pin.fill")
+                    }
+                    ForEach(Array(shown.enumerated()), id: \.element.id) { index, item in
+                        if index == pinnedCount, pinnedCount > 0 {
+                            SectionTitle(title: "History", symbol: "clock")
+                                .padding(.top, 6)
+                        }
+                        ClipRow(
+                            item: item,
+                            index: index,
+                            isSelected: index == model.selectedIndex,
+                            isPinned: index < pinnedCount,
+                            onPin: {
+                                withAnimation(.easeOut(duration: 0.15)) {
+                                    clipboard.togglePin(item)
+                                }
+                            },
+                            onDelete: {
+                                withAnimation(.easeOut(duration: 0.15)) {
+                                    clipboard.remove(item)
+                                }
+                            },
+                            action: {
+                                model.onPick(item, optionHeld)
+                            }
+                        )
+                        .id(item.id)
+                    }
+                }
+                .padding(.horizontal, 10)
+                .padding(.bottom, 8)
+            }
+            .onChange(of: model.selectedIndex) { _, index in
+                let shown = shown
+                guard shown.indices.contains(index) else { return }
+                proxy.scrollTo(shown[index].id)
+            }
+        }
+    }
+}
+
+private struct SectionTitle: View {
+    let title: String
+    let symbol: String
+
+    var body: some View {
+        Label(title, systemImage: symbol)
+            .font(.system(size: 10.5, weight: .semibold))
+            .foregroundStyle(.secondary)
+            .padding(.leading, 10)
+            .padding(.vertical, 2)
     }
 }
 
 private struct ClipRow: View {
     let item: ClipItem
     let index: Int
+    let isSelected: Bool
+    let isPinned: Bool
+    let onPin: () -> Void
     let onDelete: () -> Void
     let action: () -> Void
 
@@ -81,6 +157,24 @@ private struct ClipRow: View {
 
     private var hoverID: String { "clip-" + item.id.uuidString }
     private var isHovered: Bool { hover.hoveredID == hoverID }
+
+    private var background: Color {
+        if isSelected { return Color.accentColor.opacity(0.18) }
+        if isHovered { return Color.primary.opacity(0.09) }
+        return .clear
+    }
+
+    /// Long texts are cut to two lines in the row; hovering shows more.
+    private var tooltip: String {
+        switch item.content {
+        case .text(let string):
+            return string.count > 1500 ? String(string.prefix(1500)) + "…" : string
+        case .files(let urls, _):
+            return urls.map(\.path).joined(separator: "\n")
+        case .image:
+            return ""
+        }
+    }
 
     var body: some View {
         Button(action: action) {
@@ -100,27 +194,29 @@ private struct ClipRow: View {
             .padding(.vertical, 8)
             .background(
                 RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    .fill(Color.primary.opacity(isHovered ? 0.09 : 0))
+                    .fill(background)
             )
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .modifier(QuickPickShortcut(index: index))
-        // The delete button sits on top of the row, just left of the ⌘-number,
+        .help(tooltip)
+        // Pin and delete sit on top of the row, just left of the ⌘-number,
         // and only while the pointer is over the row.
         .overlay(alignment: .trailing) {
             if isHovered {
-                Button(action: onDelete) {
-                    Image(systemName: "xmark.circle.fill")
-                        .font(.system(size: 14))
-                        .foregroundStyle(.secondary)
-                        .padding(4)
-                        .contentShape(Rectangle())
+                HStack(spacing: 0) {
+                    RowButton(symbol: isPinned ? "pin.slash.fill" : "pin.fill",
+                              help: isPinned ? "Unpin" : "Pin: keep it, also after a restart",
+                              action: onPin)
+                    RowButton(symbol: "xmark.circle.fill", help: "Remove", action: onDelete)
                 }
-                .buttonStyle(.plain)
-                .help("Remove from history")
                 .padding(.trailing, 50)
             }
+        }
+        .contextMenu {
+            Button(isPinned ? "Unpin" : "Pin", action: onPin)
+            Button("Remove", action: onDelete)
         }
         .onHover { isHovering in
             hover.update(hoverID, isHovering: isHovering)
@@ -182,6 +278,24 @@ private struct ClipRow: View {
                 Spacer(minLength: 0)
             }
         }
+    }
+}
+
+private struct RowButton: View {
+    let symbol: String
+    let help: String
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: symbol)
+                .font(.system(size: 13))
+                .foregroundStyle(.secondary)
+                .padding(4)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .help(help)
     }
 }
 

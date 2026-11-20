@@ -33,6 +33,17 @@ final class PanelModel: ObservableObject {
     /// Goes up by one every time the panel opens. Views watch it to refocus the search field.
     @Published var openCount = 0
     @Published var launchAtLogin = false
+    /// The highlighted row in the Clipboard tab, moved with ↑↓.
+    @Published var selectedIndex = 0
+    /// Clips older than this many minutes are forgotten. 0 keeps them until quit.
+    @Published var forgetAfterMinutes: Int {
+        didSet {
+            UserDefaults.standard.set(forgetAfterMinutes, forKey: Self.forgetAfterKey)
+            onForgetAfterChanged(forgetAfterMinutes)
+        }
+    }
+
+    private static let forgetAfterKey = "forgetClipsAfterMinutes"
     /// Our hotkeys that another app had already taken, for example "⌃⌥⌘S".
     @Published var unavailableHotKeys: [String] = []
 
@@ -46,10 +57,12 @@ final class PanelModel: ObservableObject {
     var onCopyCharacter: (String) -> Void = { _ in }
     var onEnableDirectPaste: () -> Void = {}
     var onClearHistory: () -> Void = {}
+    var onForgetAfterChanged: (Int) -> Void = { _ in }
     var onClose: () -> Void = {}
     var onQuit: () -> Void = {}
 
     init() {
+        forgetAfterMinutes = UserDefaults.standard.integer(forKey: Self.forgetAfterKey)
         launchAtLogin = SMAppService.mainApp.status == .enabled
     }
 

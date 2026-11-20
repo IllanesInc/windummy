@@ -76,6 +76,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         model.onClearHistory = { [weak self] in
             self?.clipboard.clear()
         }
+        model.onForgetAfterChanged = { [weak self] minutes in
+            self?.clipboard.forgetAfter = minutes > 0 ? TimeInterval(minutes * 60) : nil
+        }
+        model.onForgetAfterChanged(model.forgetAfterMinutes)
         model.onClose = { [weak self] in
             self?.hidePanel()
         }
@@ -108,6 +112,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func showPanel(nearStatusItem: Bool) {
         model.canDirectPaste = Paster.isTrusted
         model.query = ""
+        model.selectedIndex = 0
         model.charactersQuery = ""
         keyboard.refresh()
         hover.clear()

@@ -78,6 +78,12 @@ private struct HeaderView: View {
                         model.onEnableDirectPaste()
                     }
                 }
+                Picker("Forget clips after", selection: $model.forgetAfterMinutes) {
+                    Text("Never (until quit)").tag(0)
+                    Text("15 minutes").tag(15)
+                    Text("1 hour").tag(60)
+                    Text("8 hours").tag(480)
+                }
                 Button("Clear clipboard history") {
                     model.onClearHistory()
                 }

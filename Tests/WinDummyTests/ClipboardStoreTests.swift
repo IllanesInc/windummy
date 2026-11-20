@@ -6,10 +6,12 @@ import Testing
 @MainActor
 @Suite struct ClipboardStoreTests {
     let pasteboard = NSPasteboard(name: NSPasteboard.Name("windummy-tests-\(UUID().uuidString)"))
+    let pinnedFile = FileManager.default.temporaryDirectory
+        .appendingPathComponent("windummy-tests-\(UUID().uuidString).plist")
     let store: ClipboardStore
 
     init() {
-        store = ClipboardStore(pasteboard: pasteboard)
+        store = ClipboardStore(pasteboard: pasteboard, pinnedFile: pinnedFile)
     }
 
     private func copy(_ string: String) {
@@ -126,5 +128,49 @@ import Testing
         #expect(pasteboard.string(forType: .string) == "keep me")
         store.poll()
         #expect(store.items.map(\.searchableText) == ["keep me"])
+    }
+
+    @Test func pinnedClipsSurviveARestart() throws {
+        copy("keep forever")
+        copy("just history")
+        let item = try #require(store.items.first { $0.searchableText == "keep forever" })
+        store.togglePin(item)
+        #expect(store.pinned.map(\.searchableText) == ["keep forever"])
+        #expect(store.items.map(\.searchableText) == ["just history"])
+
+        let restarted = ClipboardStore(pasteboard: pasteboard, pinnedFile: pinnedFile)
+        #expect(restarted.pinned.map(\.searchableText) == ["keep forever"])
+        #expect(restarted.items.isEmpty)
+        try? FileManager.default.removeItem(at: pinnedFile)
+    }
+
+    @Test func clearingTheHistoryKeepsPinnedClips() throws {
+        copy("pinned")
+        store.togglePin(try #require(store.items.first))
+        copy("other")
+        store.clear()
+        #expect(store.items.isEmpty)
+        #expect(store.pinned.count == 1)
+        try? FileManager.default.removeItem(at: pinnedFile)
+    }
+
+    @Test func copyingAPinnedClipAgainDoesNotDuplicateIt() throws {
+        copy("pinned")
+        store.togglePin(try #require(store.items.first))
+        copy("pinned")
+        #expect(store.items.isEmpty)
+        #expect(store.pinned.count == 1)
+        try? FileManager.default.removeItem(at: pinnedFile)
+    }
+
+    @Test func oldClipsAreForgottenButPinnedOnesStay() async throws {
+        copy("pinned")
+        store.togglePin(try #require(store.items.first))
+        copy("old")
+        try await Task.sleep(for: .milliseconds(300))
+        store.forgetAfter = 0.2
+        #expect(store.items.isEmpty)
+        #expect(store.pinned.count == 1)
+        try? FileManager.default.removeItem(at: pinnedFile)
     }
 }
