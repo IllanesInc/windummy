@@ -30,6 +30,7 @@ Everything lives in one floating panel. Click the ⌘ icon in the menu bar, or p
 
 - **Quick actions** for snipping an area, copying a window, and opening the macOS screenshot and recording toolbar.
 - **Clipboard** tab: the last 40 things you copied, text and images. Type to filter, press Return to paste the top hit, or press `⌘1` to `⌘9`.
+- **Characters** tab: where `@`, `|`, `\`, `{ }`, `[ ]`, `~` and about 30 other hard-to-find characters are on *your* keyboard layout, worked out from the layout itself, so it is right for Swedish, German, French and the rest. Click a character to type it, star the ones you use to keep them at the top.
 - **Cheat sheet** tab: about 60 Windows shortcuts translated to their Mac equivalents. Search by the Windows keys (`Alt+Tab`) or by what you want to do (`rename`).
 
 Clipboard history is kept in memory only. Nothing is written to disk, and it is gone when you quit. Entries that password managers mark as secret are never recorded.
@@ -101,9 +102,11 @@ Sources/WinDummy/
 │   ├── ClipboardStore.swift    Clipboard history
 │   ├── HotKeyCenter.swift      Global hotkeys (Carbon)
 │   ├── ScreenCapture.swift     Wraps the system `screencapture` tool
-│   └── Paster.swift            Sends ⌘V
+│   ├── KeyboardCharacters.swift Where each character is on the current layout, favourites
+│   └── Paster.swift            Sends ⌘V, types characters
 ├── Data/
-│   └── CheatSheet.swift        The shortcut translations
+│   ├── CheatSheet.swift        The shortcut translations
+│   └── Characters.swift        The characters in the Characters tab
 └── Views/                      SwiftUI views
 ```
 

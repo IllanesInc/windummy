@@ -9,6 +9,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let clipboard = ClipboardStore()
     private let model = PanelModel()
     private let hover = HoverTracker()
+    private let keyboard = KeyboardCharacters()
 
     private var isHiding = false
     private var lastHide = Date.distantPast
@@ -61,6 +62,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         model.onPick = { [weak self] item in
             self?.pick(item)
         }
+        model.onTypeCharacter = { [weak self] character in
+            self?.type(character)
+        }
+        model.onCopyCharacter = { [weak self] character in
+            self?.hidePanel()
+            Self.putOnClipboard(character)
+        }
         model.onEnableDirectPaste = { [weak self] in
             self?.hidePanel()
             Paster.requestPermission()
@@ -79,6 +87,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             .environmentObject(model)
             .environmentObject(clipboard)
             .environmentObject(hover)
+            .environmentObject(keyboard)
         panel.contentView = NSHostingView(rootView: root)
     }
 
@@ -99,6 +108,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func showPanel(nearStatusItem: Bool) {
         model.canDirectPaste = Paster.isTrusted
         model.query = ""
+        model.charactersQuery = ""
+        keyboard.refresh()
         hover.clear()
         positionPanel(nearStatusItem: nearStatusItem)
 
@@ -162,6 +173,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 Paster.paste()
             }
         }
+    }
+
+    /// Pastes the character where the cursor is, leaving the clipboard as it was.
+    /// Without the Accessibility permission it goes on the clipboard instead, ready for ⌘V.
+    private func type(_ character: String) {
+        hidePanel()
+        if Paster.isTrusted {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { [weak self] in
+                self?.clipboard.pasteTemporarily(character) {
+                    Paster.paste()
+                }
+            }
+        } else {
+            Self.putOnClipboard(character)
+        }
+    }
+
+    private static func putOnClipboard(_ string: String) {
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+        pasteboard.setString(string, forType: .string)
     }
 
     // MARK: - Global hotkeys (⌃⌥⌘ + letter)

@@ -7,6 +7,7 @@ import SwiftUI
 final class PanelModel: ObservableObject {
     enum Tab: String, CaseIterable, Identifiable {
         case clipboard
+        case characters
         case cheatSheet
 
         var id: String { rawValue }
@@ -14,6 +15,7 @@ final class PanelModel: ObservableObject {
         var title: String {
             switch self {
             case .clipboard: return "Clipboard"
+            case .characters: return "Characters"
             case .cheatSheet: return "Cheat sheet"
             }
         }
@@ -24,6 +26,8 @@ final class PanelModel: ObservableObject {
     @Published var query = ""
     /// Search text in the Cheat sheet tab.
     @Published var cheatSheetQuery = ""
+    /// Search text in the Characters tab.
+    @Published var charactersQuery = ""
     /// True when macOS lets us press ⌘V on the user's behalf (Accessibility permission).
     @Published var canDirectPaste = false
     /// Goes up by one every time the panel opens. Views watch it to refocus the search field.
@@ -34,6 +38,9 @@ final class PanelModel: ObservableObject {
     var onSnipWindow: () -> Void = {}
     var onOpenScreenshotToolbar: () -> Void = {}
     var onPick: (ClipItem) -> Void = { _ in }
+    /// Puts a character into the app the user was working in.
+    var onTypeCharacter: (String) -> Void = { _ in }
+    var onCopyCharacter: (String) -> Void = { _ in }
     var onEnableDirectPaste: () -> Void = {}
     var onClearHistory: () -> Void = {}
     var onClose: () -> Void = {}

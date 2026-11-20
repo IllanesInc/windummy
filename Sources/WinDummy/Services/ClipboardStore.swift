@@ -75,6 +75,51 @@ final class ClipboardStore: ObservableObject {
         }
     }
 
+    /// Puts `string` on the clipboard just long enough for `paste` to use it,
+    /// then puts back whatever was there before. None of it shows up in the history.
+    ///
+    /// Pasting works in every app, unlike typing with synthetic key events,
+    /// which some apps (Electron ones among them) ignore.
+    func pasteTemporarily(_ string: String, paste: @escaping () -> Void) {
+        let saved: [[NSPasteboard.PasteboardType: Data]] = (pasteboard.pasteboardItems ?? []).map { item in
+            var contents: [NSPasteboard.PasteboardType: Data] = [:]
+            for type in item.types {
+                contents[type] = item.data(forType: type)
+            }
+            return contents
+        }
+        let savedItemID = currentItemID
+
+        pasteboard.clearContents()
+        pasteboard.setString(string, forType: .string)
+        lastChangeCount = pasteboard.changeCount
+        let ourChange = lastChangeCount
+
+        paste()
+
+        // The app receiving ⌘V reads the clipboard when it handles the key
+        // press, which is quick but not instant. Give it a moment.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { [weak self] in
+            guard let self else { return }
+            // Something new was copied in the meantime; leave it alone.
+            guard self.pasteboard.changeCount == ourChange else { return }
+
+            self.pasteboard.clearContents()
+            let items = saved.map { contents -> NSPasteboardItem in
+                let item = NSPasteboardItem()
+                for (type, data) in contents {
+                    item.setData(data, forType: type)
+                }
+                return item
+            }
+            if !items.isEmpty {
+                self.pasteboard.writeObjects(items)
+            }
+            self.lastChangeCount = self.pasteboard.changeCount
+            self.currentItemID = savedItemID
+        }
+    }
+
     /// Removes one entry from the history. If the clipboard still holds that
     /// entry, the clipboard is emptied too, so a deleted code or password
     /// cannot be pasted by accident afterwards.

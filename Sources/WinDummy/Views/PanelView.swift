@@ -24,6 +24,8 @@ struct PanelView: View {
                 switch model.tab {
                 case .clipboard:
                     ClipboardView()
+                case .characters:
+                    CharactersView()
                 case .cheatSheet:
                     CheatSheetView()
                 }

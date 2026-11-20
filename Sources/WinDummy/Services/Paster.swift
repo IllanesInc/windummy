@@ -29,4 +29,5 @@ enum Paster {
         keyDown?.post(tap: .cghidEventTap)
         keyUp?.post(tap: .cghidEventTap)
     }
+
 }
