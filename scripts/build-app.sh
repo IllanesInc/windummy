@@ -6,11 +6,14 @@
 #
 # Needs the Xcode Command Line Tools (xcode-select --install). Full Xcode is not required.
 #
-# The app is signed ad hoc by default. macOS ties permissions (Screen Recording,
-# Accessibility) to the signature, so it may ask again after a rebuild. To keep
-# them, sign with a real identity:
+# Signing. macOS ties permissions (Screen Recording, Accessibility) to the app's
+# signature. An ad hoc signature changes with every build, so the permissions
+# have to be granted again after each rebuild. A fixed identity avoids that.
+# The script uses the first of these that applies:
 #
-#   CODESIGN_IDENTITY="Apple Development: you@example.com (TEAMID)" ./scripts/build-app.sh
+#   1. $CODESIGN_IDENTITY, if set
+#   2. a certificate named "WinDummy Dev" in your keychain (see the README)
+#   3. ad hoc signing
 
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -18,7 +21,15 @@ cd "$(dirname "$0")/.."
 APP_NAME="WinDummy"
 EXECUTABLE="WinDummy"
 APP_DIR="build/${APP_NAME}.app"
-IDENTITY="${CODESIGN_IDENTITY:--}"
+LOCAL_IDENTITY="WinDummy Dev"
+
+if [ -n "${CODESIGN_IDENTITY:-}" ]; then
+    IDENTITY="${CODESIGN_IDENTITY}"
+elif security find-certificate -c "${LOCAL_IDENTITY}" >/dev/null 2>&1; then
+    IDENTITY="${LOCAL_IDENTITY}"
+else
+    IDENTITY="-"
+fi
 
 echo "==> Compiling (release)"
 mkdir -p build
@@ -35,8 +46,16 @@ if [ -f "Support/AppIcon.icns" ]; then
     cp "Support/AppIcon.icns" "${APP_DIR}/Contents/Resources/AppIcon.icns"
 fi
 
-echo "==> Signing"
-codesign --force --sign "${IDENTITY}" "${APP_DIR}"
+if [ "${IDENTITY}" = "-" ]; then
+    echo "==> Signing ad hoc (macOS will ask for permissions again after this build)"
+    codesign --force --sign - "${APP_DIR}"
+else
+    echo "==> Signing with \"${IDENTITY}\""
+    if ! codesign --force --sign "${IDENTITY}" "${APP_DIR}"; then
+        echo "    That failed, so the app is signed ad hoc instead."
+        codesign --force --sign - "${APP_DIR}"
+    fi
+fi
 
 echo "==> Done: ${APP_DIR}"
 

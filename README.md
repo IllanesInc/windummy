@@ -60,10 +60,29 @@ macOS asks for these the first time they are needed.
 | Accessibility | Pressing `⌘V` for you after you pick a clip, the way `Win+V` pastes | Optional. Without it the clip is put on the clipboard and you press `⌘V` yourself |
 | Paste from other apps | Reading the clipboard to build the history. Newer macOS versions may ask | For clipboard history |
 
-The build script signs the app ad hoc. macOS ties permissions to the signature, so it may ask again after you rebuild. To keep them between builds, sign with a real identity:
+### Keeping permissions between builds
+
+macOS ties these permissions to the app's signature. By default the build script signs the app ad hoc, and that signature changes with every build, so macOS treats each rebuild as a new app: snipping brings up the crosshair but nothing lands on the clipboard until you grant the permission again.
+
+Create a signing certificate once and the problem goes away:
+
+1. Open **Keychain Access**.
+2. In the menu bar choose **Keychain Access → Certificate Assistant → Create a Certificate…**
+3. Name it `WinDummy Dev`, set **Identity Type** to *Self-Signed Root* and **Certificate Type** to *Code Signing*, then click **Create**.
+
+The build script finds a certificate with that name and uses it. The first time, macOS asks whether `codesign` may use the key; choose **Always Allow**. Grant the permissions once more after that build, and they stay.
+
+If you have an Apple Developer identity you can use that instead:
 
 ```sh
 CODESIGN_IDENTITY="Apple Development: you@example.com (TEAMID)" ./scripts/build-app.sh
+```
+
+If a permission is stuck, reset it and let macOS ask again:
+
+```sh
+tccutil reset ScreenCapture dev.windummy.app
+tccutil reset Accessibility dev.windummy.app
 ```
 
 ## How it is built
