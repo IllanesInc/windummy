@@ -4,6 +4,10 @@ import Testing
 
 /// Checks the key combinations against fixed layouts, whatever layout the
 /// machine running the tests happens to use.
+///
+/// On the main actor because the Text Input Sources API crashes on purpose
+/// when called from any other thread.
+@MainActor
 @Suite struct KeyboardCharactersTests {
     private func recipes(layout id: String) throws -> [String: KeyRecipe] {
         let filter = [kTISPropertyInputSourceID as String: id] as CFDictionary
